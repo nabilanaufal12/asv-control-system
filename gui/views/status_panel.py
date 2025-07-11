@@ -1,202 +1,173 @@
 # gui/views/status_panel.py
 
+# --- Impor Pustaka PyQt5 ---
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGroupBox, QLabel,
                              QListWidget, QListWidgetItem, QHBoxLayout, QPushButton,
-                             QLineEdit, QFormLayout) # Import QLineEdit dan QFormLayout
-from PyQt5.QtCore import Qt, QTimer
+                             QLineEdit, QFormLayout)
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QDoubleValidator
 
 class StatusPanel(QWidget):
-    def __init__(self):
-        super().__init__()
+    """
+    Panel di sisi kanan aplikasi yang menampilkan status sistem secara real-time
+    dan menyediakan fungsionalitas untuk manajemen waypoint.
+    """
+    # === DEFINISI SINYAL ===
+    # Sinyal ini digunakan untuk mengirim pesan ke jendela utama (DashboardWindow)
+    # agar ditampilkan di status bar bawah.
+    # Membawa dua argumen: (str: pesan_yang_akan_ditampilkan, int: durasi_dalam_milidetik)
+    message_to_show = pyqtSignal(str, int)
+
+    def __init__(self, parent=None):
+        # Menerima 'parent' agar widget ini bisa terintegrasi dengan benar
+        super().__init__(parent)
+        
+        # --- Layout Utama ---
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(10, 10, 10, 10)
-        self.main_layout.setSpacing(15) # Tambahkan spasi antar grup utama
+        self.main_layout.setSpacing(15)
 
-        # --- Waypoints Group ---
+        # --- Grup Waypoints ---
         wp_group = QGroupBox("Waypoints")
-        wp_layout = QVBoxLayout()
-        wp_layout.setSpacing(10)
-
-        # NEW: Input Fields for Latitude and Longitude
-        self.wp_form_layout = QFormLayout()
-        self.lat_input = QLineEdit("-6.2100") # Default dummy value
-        self.lon_input = QLineEdit("106.8400") # Default dummy value
-        self.wp_form_layout.addRow("Latitude:", self.lat_input)
-        self.wp_form_layout.addRow("Longitude:", self.lon_input)
-        wp_layout.addLayout(self.wp_form_layout)
-
-        # NEW: Add, Delete, Send All Buttons
-        self.wp_buttons_layout = QHBoxLayout()
+        wp_layout = QVBoxLayout(wp_group)
+        
+        # Form untuk memasukkan koordinat waypoint baru
+        wp_form_layout = QFormLayout()
+        self.lat_input = QLineEdit()
+        self.lon_input = QLineEdit()
+        
+        # Validator untuk memastikan input adalah angka desimal yang valid
+        lat_validator = QDoubleValidator(-90.0, 90.0, 7, self) # Rentang Latitude: -90 hingga +90
+        lon_validator = QDoubleValidator(-180.0, 180.0, 7, self) # Rentang Longitude: -180 hingga +180
+        self.lat_input.setValidator(lat_validator)
+        self.lon_input.setValidator(lon_validator)
+        self.lat_input.setPlaceholderText("contoh: -6.2100") # Teks bantuan untuk pengguna
+        self.lon_input.setPlaceholderText("contoh: 106.8400")
+        
+        wp_form_layout.addRow("Latitude:", self.lat_input)
+        wp_form_layout.addRow("Longitude:", self.lon_input)
+        wp_layout.addLayout(wp_form_layout)
+        
+        # Tombol-tombol aksi untuk waypoint
+        wp_buttons_layout = QHBoxLayout()
         self.add_wp_button = QPushButton("Add")
-        self.add_wp_button.clicked.connect(self.add_waypoint)
         self.delete_wp_button = QPushButton("Delete")
-        self.delete_wp_button.clicked.connect(self.delete_selected_waypoint)
-        self.delete_wp_button.setEnabled(False) # Nonaktifkan secara default
         self.send_all_wp_button = QPushButton("Send All")
+        
+        # Menghubungkan tombol ke fungsi logikanya masing-masing
+        self.add_wp_button.clicked.connect(self.add_waypoint)
+        self.delete_wp_button.clicked.connect(self.delete_selected_waypoint)
         self.send_all_wp_button.clicked.connect(self.send_all_waypoints)
         
-        self.wp_buttons_layout.addWidget(self.add_wp_button)
-        self.wp_buttons_layout.addWidget(self.delete_wp_button)
-        self.wp_buttons_layout.addWidget(self.send_all_wp_button)
-        wp_layout.addLayout(self.wp_buttons_layout)
-
-        # Waypoint List (QListWidget) - Diubah posisinya
-        self.wp_list = QListWidget()
-        self.wp_list.setSelectionMode(QListWidget.SingleSelection) # Memungkinkan pemilihan satu item
-        self.wp_list.itemSelectionChanged.connect(self._update_delete_button_state) # Update delete button
-
-        # Tambahkan beberapa dummy waypoints awal
-        self.add_waypoint_to_list("-6.2088", "106.8456")
-        self.add_waypoint_to_list("-6.2095", "106.8470")
-        self.add_waypoint_to_list("-6.2102", "106.8485")
+        wp_buttons_layout.addWidget(self.add_wp_button)
+        wp_buttons_layout.addWidget(self.delete_wp_button)
+        wp_buttons_layout.addWidget(self.send_all_wp_button)
+        wp_layout.addLayout(wp_buttons_layout)
         
+        # Daftar untuk menampilkan waypoint yang telah ditambahkan
+        self.wp_list = QListWidget()
+        self.wp_list.itemSelectionChanged.connect(self._update_delete_button_state) # Update tombol delete saat item dipilih
         wp_layout.addWidget(self.wp_list)
-
-        # Hapus tombol "Go to Selected Waypoint" dari sini, atau ganti logikanya ke "Send All"
-        # Karena gambar baru tidak menunjukkannya secara eksplisit, saya akan menghapusnya
-        # self.go_to_wp_button = QPushButton("Go to Selected Waypoint")
-        # self.go_to_wp_button.clicked.connect(self.go_to_selected_waypoint)
-        # self.go_to_wp_button.setEnabled(False)
-        # self.wp_list.itemSelectionChanged.connect(self._update_go_to_wp_button_state)
-        # wp_layout.addWidget(self.go_to_wp_button)
-
+        
         wp_group.setLayout(wp_layout)
         self.main_layout.addWidget(wp_group)
 
-        # --- System Status Group (tetap seperti sebelumnya, hanya memastikan objectName) ---
+        # --- Grup Status Sistem ---
         status_group = QGroupBox("System Status")
-        status_layout = QVBoxLayout()
-        status_layout.setSpacing(8) # Sesuaikan spasi
-
-        def create_status_label_pair(title, initial_value, object_name=None):
+        status_layout = QVBoxLayout(status_group)
+        status_layout.setSpacing(8)
+        
+        # Fungsi bantuan untuk membuat baris status (Label Kiri, Nilai Kanan)
+        def create_status_label_pair(title, initial_value):
             h_layout = QHBoxLayout()
             h_layout.addWidget(QLabel(title))
             value_label = QLabel(initial_value)
-            value_label.setAlignment(Qt.AlignRight)
-            if object_name:
-                value_label.setObjectName(object_name)
+            value_label.setAlignment(Qt.AlignRight) # Ratakan kanan untuk nilai
+            value_label.setObjectName("ValueLabel") # Untuk styling QSS
             h_layout.addWidget(value_label)
             return h_layout, value_label
-
-        self.gps_layout, self.gps_value_label = create_status_label_pair("GPS:", "12 Sats", "ValueLabel")
-        self.battery_layout, self.battery_value_label = create_status_label_pair("Battery:", "11.9 V", "ValueLabel")
-        self.compass_layout, self.compass_value_label = create_status_label_pair("Compass:", "295°", "ValueLabel")
-        self.speed_layout, self.speed_value_label = create_status_label_pair("Speed:", "2.5 m/s", "ValueLabel")
-        self.depth_layout, self.depth_value_label = create_status_label_pair("Depth:", "8.9 m", "ValueLabel")
-
-        status_layout.addLayout(self.gps_layout)
-        status_layout.addLayout(self.battery_layout)
-        status_layout.addLayout(self.compass_layout)
-        status_layout.addLayout(self.speed_layout)
-        status_layout.addLayout(self.depth_layout)
-
-        status_layout.addSpacing(10)
+            
+        # Membuat dan menambahkan setiap baris status sensor
+        sensor_status_items = [
+            create_status_label_pair("GPS:", "N/A"),
+            create_status_label_pair("Battery:", "N/A"),
+            create_status_label_pair("Compass:", "N/A"),
+            create_status_label_pair("Speed:", "N/A"),
+        ]
+        for layout, _ in sensor_status_items:
+            status_layout.addLayout(layout)
+            
+        # Baris khusus untuk menampilkan derajat dari deteksi YOLO
+        steering_layout, self.auto_steering_label = create_status_label_pair("Auto-Steering:", "N/A")
+        status_layout.addLayout(steering_layout)
+        
+        status_layout.addSpacing(10) # Beri sedikit spasi
         status_layout.addWidget(QLabel("--- Communication ---"))
-
-        self.radio_layout, self.radio_value_label = create_status_label_pair("Radio Link:", "Connected", "ValueLabel")
-        self.telemetry_layout, self.telemetry_value_label = create_status_label_pair("Telemetry:", "Receiving", "ValueLabel")
-        self.data_rate_layout, self.data_rate_value_label = create_status_label_pair("Data Rate:", "316 B/s", "ValueLabel")
-
-        status_layout.addLayout(self.radio_layout)
-        status_layout.addLayout(self.telemetry_layout)
-        status_layout.addLayout(self.data_rate_layout)
-
+        
+        # Membuat dan menambahkan baris status komunikasi
+        comm_status_items = [
+            create_status_label_pair("Radio Link:", "N/A"),
+            create_status_label_pair("Telemetry:", "N/A"),
+        ]
+        for layout, _ in comm_status_items:
+            status_layout.addLayout(layout)
+            
         status_group.setLayout(status_layout)
         self.main_layout.addWidget(status_group)
+        self.main_layout.addStretch() # Mendorong semua grup ke atas
+        self._update_delete_button_state() # Atur status awal tombol delete
 
-        self.main_layout.addStretch()
-
-        self._dummy_update_timer = QTimer(self)
-        self._dummy_update_timer.timeout.connect(self._update_dummy_values)
-        self._dummy_update_timer.start(1000)
-
-    # NEW: Helper method to add waypoint to list
-    def add_waypoint_to_list(self, lat, lon):
-        item_text = f"WP {self.wp_list.count() + 1}: Lat {lat}, Lon {lon}"
-        self.wp_list.addItem(QListWidgetItem(item_text))
+    # === FUNGSI LOGIKA UNTUK WAYPOINT ===
 
     def add_waypoint(self):
-        """Menambahkan waypoint baru dari input Lat/Lon ke daftar."""
-        lat = self.lat_input.text()
-        lon = self.lon_input.text()
-
+        """Dipanggil saat tombol 'Add' ditekan. Menambahkan waypoint ke daftar."""
+        lat = self.lat_input.text().strip().replace(',', '.') # Ambil teks & ganti koma dengan titik
+        lon = self.lon_input.text().strip().replace(',', '.')
         if lat and lon:
-            # Validasi dasar (opsional, bisa lebih kompleks)
-            try:
-                float(lat)
-                float(lon)
-                self.add_waypoint_to_list(lat, lon)
-                self.lat_input.clear()
-                self.lon_input.clear()
-                print(f"Added Waypoint: Lat {lat}, Lon {lon}")
-            except ValueError:
-                print("Invalid Latitude or Longitude format. Please enter numbers.")
+            item_text = f"WP {self.wp_list.count() + 1}: Lat {lat}, Lon {lon}"
+            self.wp_list.addItem(QListWidgetItem(item_text))
+            self.lat_input.clear() # Kosongkan input field
+            self.lon_input.clear()
+            # Pancarkan sinyal untuk menampilkan pesan sukses di status bar
+            self.message_to_show.emit(f"Waypoint {self.wp_list.count()} added!", 3000)
         else:
-            print("Latitude and Longitude cannot be empty.")
+            # Pancarkan sinyal untuk menampilkan pesan error
+            self.message_to_show.emit("Latitude and Longitude cannot be empty.", 3000)
 
     def delete_selected_waypoint(self):
-        """Menghapus waypoint yang dipilih dari daftar."""
-        selected_items = self.wp_list.selectedItems()
-        if selected_items:
-            for item in selected_items:
-                row = self.wp_list.row(item)
-                self.wp_list.takeItem(row)
-                print(f"Deleted Waypoint: {item.text()}")
-            self._relabel_waypoints() # Relabel waypoints after deletion
-        else:
-            print("No waypoint selected to delete.")
-
-    def _relabel_waypoints(self):
-        """Updates waypoint numbers after deletion."""
-        for i in range(self.wp_list.count()):
-            item = self.wp_list.item(i)
-            # Ambil hanya bagian Lat/Lon dari teks
-            current_text_parts = item.text().split(': ', 1)
-            if len(current_text_parts) > 1:
-                item.setText(f"WP {i + 1}: {current_text_parts[1]}")
-            else: # Fallback if format is unexpected
-                item.setText(f"WP {i + 1}: {item.text()}")
-
+        """Dipanggil saat tombol 'Delete' ditekan. Menghapus item yang dipilih."""
+        selected_item = self.wp_list.currentItem()
+        if selected_item:
+            row = self.wp_list.row(selected_item)
+            self.wp_list.takeItem(row) # Hapus item dari daftar
+            self._relabel_waypoints() # Perbarui nomor urut waypoint
+            self.message_to_show.emit("Waypoint deleted.", 3000)
 
     def send_all_waypoints(self):
-        """Mengirim semua waypoint di daftar ke ASV."""
-        if self.wp_list.count() == 0:
-            print("No waypoints to send.")
+        """(Simulasi) Dipanggil saat tombol 'Send All' ditekan."""
+        count = self.wp_list.count()
+        if count == 0:
+            self.message_to_show.emit("No waypoints to send.", 3000)
             return
+        print(f"Sending {count} waypoints to ASV...")
+        # Di sini akan ada logika untuk mengirim data waypoint via serial
+        self.message_to_show.emit(f"Sent {count} waypoints to ASV.", 4000)
 
-        waypoints_data = []
+    def _relabel_waypoints(self):
+        """Memperbarui nomor urut 'WP X' setelah ada yang dihapus agar urutannya benar."""
         for i in range(self.wp_list.count()):
             item = self.wp_list.item(i)
-            # Contoh parsing text ke Lat/Lon. Perlu validasi lebih robust di aplikasi nyata.
-            parts = item.text().split(': ')
-            if len(parts) > 1 and 'Lat' in parts[1] and 'Lon' in parts[1]:
-                lat_lon_str = parts[1].replace('Lat ', '').replace('Lon ', '')
-                lat, lon = lat_lon_str.split(', ')
-                waypoints_data.append({"lat": float(lat), "lon": float(lon)})
-            else:
-                print(f"Warning: Could not parse waypoint format for '{item.text()}'. Skipping.")
-        
-        if waypoints_data:
-            print(f"Sending {len(waypoints_data)} waypoints to ASV: {waypoints_data}")
-            # Di sini Anda akan menambahkan logika untuk mengirim array waypoints ke ASV
-            # Misalnya: self.controller.send_waypoints_to_asv(waypoints_data)
-        else:
-            print("No valid waypoints found to send.")
-
+            text_parts = item.text().split(': ', 1)
+            if len(text_parts) > 1:
+                item.setText(f"WP {i + 1}: {text_parts[1]}")
 
     def _update_delete_button_state(self):
-        """Updates the enabled state of the 'Delete' button."""
+        """Mengaktifkan tombol 'Delete' hanya jika ada item yang dipilih."""
         self.delete_wp_button.setEnabled(len(self.wp_list.selectedItems()) > 0)
 
+    # === SLOT PUBLIK UNTUK MENERIMA SINYAL ===
+    
+    def update_auto_steering_degree(self, degree):
+        """Slot yang menerima sinyal dari VideoView untuk mengupdate label derajat."""
+        self.auto_steering_label.setText(f"{degree}°")
 
-    def _update_dummy_values(self):
-        # ... (fungsi dummy update sensor Anda tetap sama) ...
-        import random
-        self.gps_value_label.setText(f"{random.randint(8, 15)} Sats")
-        self.battery_value_label.setText(f"{random.uniform(11.0, 12.8):.1f} V")
-        self.compass_value_label.setText(f"{random.randint(0, 359)}°")
-        self.speed_value_label.setText(f"{random.uniform(0.0, 3.5):.1f} m/s")
-        self.depth_value_label.setText(f"{random.uniform(0.0, 10.0):.1f} m")
-        self.radio_value_label.setText("Connected" if random.random() > 0.1 else "Disconnected")
-        self.telemetry_value_label.setText("Receiving" if random.random() > 0.1 else "No Data")
-        self.data_rate_value_label.setText(f"{random.randint(10, 500)} B/s")

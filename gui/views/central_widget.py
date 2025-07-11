@@ -1,37 +1,43 @@
 # gui/views/central_widget.py
 
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTabWidget
+
+# Impor view lain yang akan menjadi isi dari tab
 from .map_view import MapView
 from .video_view import VideoView
-# Hapus import untuk PidView, ServoSettingView, SystemSettingsView dari sini
-# from .pid_view import PidView
-# from .servo_setting_view import ServoSettingView
-# from .system_settings_view import SystemSettingsView
-
 
 class CentralWidget(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 10, 0, 0)
+    """
+    Widget sentral yang berisi tampilan utama aplikasi, seperti video dan peta,
+    yang diorganisir dalam bentuk tab.
+    """
+    
+    # === PERBAIKAN UTAMA ===
+    # 1. Tambahkan 'parent=None' pada argumen __init__.
+    #    Ini memungkinkan widget untuk menerima referensi ke induknya (yaitu, DashboardWindow).
+    def __init__(self, parent=None):
+        # 2. Teruskan 'parent' ke konstruktor superclass (QWidget).
+        #    Ini adalah praktik standar di PyQt untuk memastikan widget terintegrasi
+        #    dengan benar ke dalam hierarki aplikasi.
+        super().__init__(parent)
 
-        # Create Tab Widget
+        # Layout utama untuk widget ini
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 10, 0, 0) # Beri sedikit margin di atas
+
+        # --- Buat dan Konfigurasi Tab Widget ---
         self.tabs = QTabWidget()
-        self.layout.addWidget(self.tabs)
+        self.tabs.setObjectName("CentralTabs") # Beri nama objek untuk styling QSS
 
-        # Create and add tabs
-        self.tab_map = MapView()
-        # Hapus instansiasi untuk PidView, ServoSettingView, SystemSettingsView dari sini
-        # self.tab_pid = PidView()
-        # self.tab_servo = ServoSettingView()
-        # self.tab_system = SystemSettingsView()
-
-        # A dummy video stream tab to match the image
+        # --- Buat Instance dari Setiap View ---
+        # Membuat objek dari kelas VideoView dan MapView
         self.tab_video = VideoView()
+        self.tab_map = MapView()
 
+        # --- Tambahkan View ke dalam Tabs ---
+        # Menambahkan instance view yang sudah dibuat sebagai tab baru
         self.tabs.addTab(self.tab_video, "Video Stream")
         self.tabs.addTab(self.tab_map, "Map View")
-        # Hapus penambahan tab untuk PID Settings, Servo Settings, Connection dari sini
-        # self.tabs.addTab(self.tab_pid, "PID Settings")
-        # self.tabs.addTab(self.tab_servo, "Servo Settings")
-        # self.tabs.addTab(self.tab_system, "Connection")
+
+        # Tambahkan QTabWidget yang sudah diisi ke layout utama
+        self.main_layout.addWidget(self.tabs)
