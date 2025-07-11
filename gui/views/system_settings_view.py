@@ -1,22 +1,23 @@
 # gui/views/system_settings_view.py
 
-# Impor pustaka yang diperlukan dari PyQt5
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QFormLayout, QLineEdit, QPushButton, QGroupBox, QLabel
-from PyQt5.QtCore import Qt, pyqtSignal # <<< PENTING: Impor pyqtSignal
+# Ganti QLineEdit dengan QComboBox untuk dropdown, dan tambahkan QHBoxLayout
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QFormLayout, QComboBox, 
+                             QPushButton, QGroupBox, QLabel, QHBoxLayout)
+from PyQt5.QtCore import Qt, pyqtSignal
 
 class SystemSettingsView(QWidget):
-    # === DEFINISI SINYAL ===
-    # Sinyal ini akan dipancarkan (emitted) setiap kali status koneksi berubah.
-    # Ia membawa dua argumen:
-    # 1. bool: True jika terhubung, False jika terputus.
-    # 2. str: Pesan status yang akan ditampilkan (misalnya, "Connected", "Disconnected").
-    # Sinyal ini memungkinkan widget lain (seperti DashboardWindow) untuk bereaksi terhadap perubahan koneksi.
+    """
+    Widget tab untuk pengaturan koneksi sistem.
+    Mengelola pemilihan COM port, koneksi, dan pemutusan hubungan dengan hardware.
+    """
+    # Sinyal yang akan dipancarkan saat status koneksi berubah.
+    # Akan ditangkap oleh ControlPanel dan diteruskan ke DashboardWindow.
     connection_status_changed = pyqtSignal(bool, str)
 
-    def __init__(self):
-        super().__init__()
-        # --- Inisialisasi Variabel Status ---
-        self.is_connected = False
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Inisialisasi handler serial, akan diisi oleh DashboardWindow nanti.
+        self.serial_handler = None
 
         # --- Pengaturan Layout Utama ---
         main_layout = QVBoxLayout(self)
@@ -27,69 +28,104 @@ class SystemSettingsView(QWidget):
         settings_group = QGroupBox("System Connection")
         form_layout = QFormLayout()
 
-        # Input untuk COM Port dan Channel NRF
-        self.com_port_input = QLineEdit("COM3")
-        self.nrf_channel_input = QLineEdit("108")
+        # === PERUBAHAN: Gunakan QComboBox (Dropdown) untuk COM Port ===
+        self.com_port_combo = QComboBox()
+        self.refresh_ports_button = QPushButton("Refresh")
+        self.refresh_ports_button.clicked.connect(self.populate_ports)
+        
+        # Buat layout horizontal untuk menempatkan dropdown dan tombol refresh berdampingan.
+        port_layout = QHBoxLayout()
+        port_layout.addWidget(self.com_port_combo)
+        port_layout.addWidget(self.refresh_ports_button)
 
-        # Label untuk menampilkan status koneksi di dalam tab ini
-        # Kita ganti nama variabelnya agar lebih jelas
+        # Label untuk menampilkan status koneksi di dalam tab ini.
         self.connection_status_label = QLabel("Status: Disconnected")
-        self.connection_status_label.setStyleSheet("font-weight: bold; color: #EF4444;") # Warna merah
+        self.connection_status_label.setStyleSheet("font-weight: bold; color: #EF4444;") # Merah
 
-        form_layout.addRow("COM Port:", self.com_port_input)
-        form_layout.addRow("NRF24 Channel:", self.nrf_channel_input)
+        # Menambahkan baris COM port (yang sekarang berisi layout horizontal) ke form.
+        form_layout.addRow("COM Port:", port_layout)
         form_layout.addRow(self.connection_status_label)
 
-        # Tombol untuk memulai/menghentikan koneksi
+        # Tombol untuk memulai/menghentikan koneksi.
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.toggle_connection)
 
-        # Menyatukan form dan tombol ke dalam grup
+        # Menyatukan form dan tombol ke dalam grup.
         layout_in_group = QVBoxLayout()
         layout_in_group.addLayout(form_layout)
         layout_in_group.addWidget(self.connect_button)
         settings_group.setLayout(layout_in_group)
 
         main_layout.addWidget(settings_group)
-        main_layout.addStretch() # Mendorong grup ke atas
+        main_layout.addStretch()
+
+    def set_serial_handler(self, handler):
+        """
+        Menerima instance SerialHandler dari DashboardWindow.
+        Ini adalah 'jembatan' yang menghubungkan UI ini dengan logika serial.
+        """
+        self.serial_handler = handler
+        # Langsung isi daftar port saat handler pertama kali diterima.
+        self.populate_ports()
+
+    def populate_ports(self):
+        """
+        Membersihkan dan mengisi ulang dropdown dengan daftar COM port yang tersedia.
+        Dipanggil saat startup dan saat tombol 'Refresh' ditekan.
+        """
+        if not self.serial_handler:
+            return
+        self.com_port_combo.clear() # Kosongkan daftar lama
+        ports = self.serial_handler.list_available_ports()
+        if ports:
+            self.com_port_combo.addItems(ports)
+            self.connect_button.setEnabled(True) # Aktifkan tombol connect jika ada port
+        else:
+            self.com_port_combo.addItem("Tidak ada port ditemukan")
+            self.connect_button.setEnabled(False) # Nonaktifkan jika tidak ada port
 
     def toggle_connection(self):
         """
-        Fungsi ini dipanggil saat tombol Connect/Disconnect diklik.
-        Ini akan mengubah status koneksi dan memancarkan sinyal untuk memberitahu aplikasi.
+        Menghubungkan atau memutus koneksi menggunakan SerialHandler.
+        Fungsi ini dipanggil saat tombol 'Connect'/'Disconnect' diklik.
         """
-        if not self.is_connected:
-            # --- Logika untuk mencoba menyambung ---
-            # Di sini, Anda akan menambahkan kode untuk benar-benar terhubung ke serial port.
-            # Untuk sekarang, kita hanya simulasikan keberhasilan.
-            com_port = self.com_port_input.text()
-            print(f"Mencoba terhubung ke {com_port}...")
-            
-            # Asumsikan koneksi berhasil
-            self.is_connected = True
-            message = "Connected"
-            
-            # Update UI di dalam widget ini
-            self.connection_status_label.setText(f"Status: {message}")
-            self.connection_status_label.setStyleSheet("font-weight: bold; color: #10B981;") # Warna hijau
-            self.connect_button.setText("Disconnect")
-            
-            # === PANCARKAN SINYAL ===
-            # Kirim sinyal bahwa koneksi telah berhasil.
-            self.connection_status_changed.emit(True, message)
+        if not self.serial_handler:
+            print("Error: Serial Handler belum diatur!")
+            return
 
+        if not self.serial_handler.is_connected():
+            # --- Logika untuk Menyambung ---
+            selected_port = self.com_port_combo.currentText()
+            if "Tidak ada port" in selected_port:
+                return
+            
+            # Coba hubungkan menggunakan handler
+            success = self.serial_handler.connect(selected_port)
+            
+            if success:
+                message = "Connected"
+                # Update UI di tab ini
+                self.connection_status_label.setText(f"Status: {message}")
+                self.connection_status_label.setStyleSheet("font-weight: bold; color: #10B981;") # Hijau
+                self.connect_button.setText("Disconnect")
+                self.com_port_combo.setEnabled(False) # Nonaktifkan dropdown saat terhubung
+                self.refresh_ports_button.setEnabled(False)
+                # Pancarkan sinyal sukses ke seluruh aplikasi
+                self.connection_status_changed.emit(True, message)
+            else:
+                message = "Failed to connect"
+                self.connection_status_label.setText(f"Status: {message}")
+                # Pancarkan sinyal gagal
+                self.connection_status_changed.emit(False, message)
         else:
-            # --- Logika untuk memutus koneksi ---
-            print("Memutus koneksi...")
-            
-            self.is_connected = False
+            # --- Logika untuk Memutus Koneksi ---
+            self.serial_handler.disconnect()
             message = "Disconnected"
-
-            # Update UI di dalam widget ini
+            # Update UI di tab ini
             self.connection_status_label.setText(f"Status: {message}")
-            self.connection_status_label.setStyleSheet("font-weight: bold; color: #EF4444;") # Warna merah
+            self.connection_status_label.setStyleSheet("font-weight: bold; color: #EF4444;") # Merah
             self.connect_button.setText("Connect")
-
-            # === PANCARKAN SINYAL ===
-            # Kirim sinyal bahwa koneksi telah terputus.
+            self.com_port_combo.setEnabled(True) # Aktifkan kembali dropdown
+            self.refresh_ports_button.setEnabled(True)
+            # Pancarkan sinyal bahwa koneksi telah terputus
             self.connection_status_changed.emit(False, message)

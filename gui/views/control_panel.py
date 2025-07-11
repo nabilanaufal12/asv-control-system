@@ -10,6 +10,8 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from .pid_view import PidView
 from .servo_setting_view import ServoSettingView
 from .system_settings_view import SystemSettingsView
+# Impor baru untuk Kontroler PID
+from core.pid_controller import PIDController
 
 class ControlPanel(QWidget):
     """
@@ -20,31 +22,35 @@ class ControlPanel(QWidget):
     # Sinyal ini digunakan untuk berkomunikasi dengan widget lain (terutama DashboardWindow).
     
     # Sinyal untuk meneruskan status koneksi dari tab 'Connection' ke atas.
-    # Membawa (bool: is_connected, str: message)
     connection_status_changed = pyqtSignal(bool, str)
     
     # Sinyal untuk memberitahu bahwa mode operasi telah berubah.
-    # Membawa (bool: is_auto_mode) -> True untuk Auto, False untuk Manual.
     mode_changed = pyqtSignal(bool)
 
-    def __init__(self, parent=None):
-        # Menerima 'parent' agar bisa memanggil fungsi di DashboardWindow jika diperlukan.
+    # Menerima 'parent' (DashboardWindow) dan 'serial_handler'.
+    def __init__(self, parent=None, serial_handler=None):
         super().__init__(parent)
+        # Simpan instance SerialHandler yang diberikan oleh DashboardWindow.
+        self.serial_handler = serial_handler
         
         # --- Variabel Status Internal ---
-        self.is_auto_mode = False  # Menyimpan status mode saat ini (default: Manual)
-        self.current_speed_value = 1500 # Menyimpan nilai PWM motor terakhir
-        self.current_servo_degree = 90  # Menyimpan nilai derajat servo terakhir
+        self.is_auto_mode = False
+        self.current_speed_value = 1500
+        self.current_servo_degree = 90
+
+        # === INISIALISASI PID CONTROLLER ===
+        # Membuat objek kontroler PID untuk kemudi (steering).
+        # Nilai Kp, Ki, Kd ini perlu di-tuning (disesuaikan) agar pergerakan mulus.
+        # Setpoint (target) kita adalah 90 derajat, yaitu posisi tengah layar.
+        self.pid_steering = PIDController(Kp=0.5, Ki=0.01, Kd=0.1, setpoint=90)
 
         # --- Pengaturan Layout Utama & Scroll Area ---
-        # Menggunakan QScrollArea agar panel bisa di-scroll jika kontennya terlalu panjang.
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 0)
         self.scroll_area = QScrollArea(self)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         
-        # Widget konten yang akan berisi semua elemen UI dan ditempatkan di dalam scroll area.
         self.scroll_content_widget = QWidget()
         self.main_layout = QVBoxLayout(self.scroll_content_widget)
         self.main_layout.setContentsMargins(10, 10, 10, 10)
@@ -56,7 +62,7 @@ class ControlPanel(QWidget):
         self.mode_toggle_button = QPushButton("Switch to Auto Mode")
         self.mode_toggle_button.clicked.connect(self.toggle_mode)
         btn_emergency_stop = QPushButton("Emergency Stop")
-        btn_emergency_stop.setObjectName("StopButton") # Untuk styling QSS
+        btn_emergency_stop.setObjectName("StopButton")
         btn_emergency_stop.clicked.connect(self.emergency_stop)
         vc_layout.addWidget(self.mode_toggle_button)
         vc_layout.addWidget(btn_emergency_stop)
@@ -97,7 +103,7 @@ class ControlPanel(QWidget):
         settings_tabs_group = QGroupBox("Settings")
         settings_tabs_layout = QVBoxLayout(settings_tabs_group)
         self.settings_tabs = QTabWidget()
-        self.tab_connection_settings = SystemSettingsView() # Buat instance tab koneksi
+        self.tab_connection_settings = SystemSettingsView()
         self.settings_tabs.addTab(PidView(), "PID")
         self.settings_tabs.addTab(ServoSettingView(), "Servo")
         self.settings_tabs.addTab(self.tab_connection_settings, "Connection")
@@ -108,10 +114,10 @@ class ControlPanel(QWidget):
         self.tab_connection_settings.connection_status_changed.connect(self.relay_connection_status)
         
         # --- Finalisasi Layout ---
-        self.main_layout.addStretch() # Mendorong semua konten ke atas
-        self.scroll_area.setWidget(self.scroll_content_widget) # Masukkan konten ke scroll area
-        outer_layout.addWidget(self.scroll_area) # Masukkan scroll area ke layout utama
-        self.update_ui_for_mode() # Atur visibilitas awal
+        self.main_layout.addStretch()
+        self.scroll_area.setWidget(self.scroll_content_widget)
+        outer_layout.addWidget(self.scroll_area)
+        self.update_ui_for_mode()
 
     # === FUNGSI SLOT & LOGIKA ===
 
@@ -131,24 +137,56 @@ class ControlPanel(QWidget):
         self._send_control_data()
 
     def _send_control_data(self):
-        """(Simulasi) Mengirim data kontrol kecepatan dan servo jika dalam mode manual."""
+        """Mengirim data kontrol kecepatan dan servo jika dalam mode manual."""
         if not self.is_auto_mode:
             data_to_send = f"S{self.current_speed_value};D{self.current_servo_degree}\n"
-            print(f"[SERIAL SEND] Mengirim data: {data_to_send.strip()}")
+            
+            # === PERUBAHAN: Tambahkan print untuk debugging ===
+            print(f"[MANUAL] Menyiapkan data untuk dikirim: {data_to_send.strip()}")
+            
+            if self.serial_handler and self.serial_handler.is_connected():
+                self.serial_handler.send_data(data_to_send)
 
-    def set_servo_from_yolo(self, degree):
-        """Slot yang menerima sinyal derajat dari VideoView saat mode auto aktif."""
+    def set_servo_from_yolo(self, degree_from_camera):
+        """
+        Slot yang menerima sinyal derajat dari VideoView, menghitung koreksi
+        menggunakan PID, dan mengirim data jika mode auto aktif.
+        """
         if self.is_auto_mode:
-            self.current_servo_degree = degree
-            auto_speed_pwm = 1550 # Kecepatan konstan saat mode auto (contoh)
+            # Hitung output koreksi dari PID berdasarkan derajat yang dideteksi kamera.
+            correction = self.pid_steering.update(degree_from_camera)
+            
+            # Terapkan koreksi ke posisi servo. Posisi lurus adalah 90.
+            # Jika 'correction' positif (objek di kiri), servo akan berbelok ke kanan (90 + correction).
+            # Jika 'correction' negatif (objek di kanan), servo akan berbelok ke kiri (90 - |correction|).
+            # Logika ini mungkin perlu dibalik (90 - correction) tergantung orientasi servo Anda.
+            new_servo_degree = 90 + correction
+            
+            # Batasi nilai servo agar tidak melebihi batas fisik (0-180).
+            new_servo_degree = max(0, min(180, new_servo_degree))
+            
+            self.current_servo_degree = int(new_servo_degree)
+            
+            # Kecepatan di mode auto bisa konstan atau diatur oleh logika lain.
+            auto_speed_pwm = 1550
             data_to_send = f"S{auto_speed_pwm};D{self.current_servo_degree}\n"
-            print(f"[AUTO-YOLO] Mengirim data: {data_to_send.strip()}")
+            
+            # === PERUBAHAN: Tambahkan print untuk debugging ===
+            print(f"[AUTO-PID] Menyiapkan data untuk dikirim: {data_to_send.strip()}")
+            
+            # Kirim data menggunakan SerialHandler.
+            if self.serial_handler and self.serial_handler.is_connected():
+                self.serial_handler.send_data(data_to_send)
 
     def emergency_stop(self):
         """Mengirim perintah berhenti darurat ke ASV."""
-        data_to_send = f"S1500;D90\n" # Perintah PWM netral dan servo tengah
-        print(f"[EMERGENCY STOP] Mengirim perintah berhenti: {data_to_send.strip()}")
-        # Memberi notifikasi di status bar melalui parent (DashboardWindow)
+        data_to_send = f"S1500;D90\n" # Perintah PWM netral dan servo tengah.
+        
+        # === PERUBAHAN: Tambahkan print untuk debugging ===
+        print(f"[EMERGENCY] Menyiapkan data untuk dikirim: {data_to_send.strip()}")
+        
+        if self.serial_handler and self.serial_handler.is_connected():
+            self.serial_handler.send_data(data_to_send)
         if self.parent():
             self.parent().show_temporary_message("EMERGENCY STOP ACTIVATED", 5000)
 
@@ -157,6 +195,10 @@ class ControlPanel(QWidget):
         self.is_auto_mode = not self.is_auto_mode
         self.update_ui_for_mode()
         
+        # Jika beralih ke mode Auto, reset PID agar perhitungan dimulai dari awal.
+        if self.is_auto_mode:
+            self.pid_steering.reset()
+            
         # Pancarkan sinyal untuk memberitahu seluruh aplikasi tentang perubahan mode.
         self.mode_changed.emit(self.is_auto_mode)
 
