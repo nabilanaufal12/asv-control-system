@@ -63,7 +63,6 @@ class StatusPanel(QWidget):
             h_layout.addWidget(value_label)
             return h_layout, value_label
 
-        # === PERUBAHAN: Simpan referensi ke setiap label nilai ===
         gps_layout, self.gps_value_label = create_status_label_pair("GPS:")
         battery_layout, self.battery_value_label = create_status_label_pair("Battery:")
         compass_layout, self.compass_value_label = create_status_label_pair("Compass:")
