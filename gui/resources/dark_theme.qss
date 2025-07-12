@@ -1,226 +1,107 @@
-/* Dark Theme - Refined Colors */
+/*
+ * Dark Theme for ASV Control System
+ * Inspired by UMRAH Logo
+ */
 
-/* Base Styles */
+/* --- Global Settings --- */
 QWidget {
-    background-color: #282c34; /* Dark charcoal/slate */
-    color: #abb2bf; /* Light greyish blue for text */
+    background-color: #282c34;
+    color: #abb2bf;
     font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 14px;
 }
 
-QMainWindow, QDialog {
-    background-color: #21252b; /* Slightly darker background for main window */
+QMainWindow, #centralWidget {
+    background-color: #21252b;
 }
 
-/* Header */
+/* --- Header & Status --- */
 #Header {
-    background-color: #21252b; /* Matches main window background */
-    border-bottom: 2px solid #61afef; /* Vibrant blue accent */
-    padding: 10px;
+    background-color: #282c34;
+    border-bottom: 2px solid #0053A0; /* UMRAH Blue Border */
 }
-
 #Header QLabel {
-    font-size: 20px;
-    font-weight: bold;
-    color: #e0e0e0; /* Off-white for header title */
+    font-size: 18px; font-weight: bold; color: #e6e6e6; padding-left: 10px;
 }
-
 #StatusLabel {
-    font-size: 12px;
-    font-weight: normal;
-    padding: 5px 10px;
-    border-radius: 5px;
-    margin-left: 5px; /* Add a bit of spacing */
+    background-color: #4B5563; color: #D1D5DB; font-size: 12px; font-weight: bold;
+    padding: 5px 10px; border-radius: 12px; min-width: 80px; text-align: center;
 }
+#StatusLabel[connected="true"] { background-color: #10B981; color: #ffffff; }
+#StatusLabel[connected="false"] { background-color: #D42127; /* UMRAH Red */ color: #ffffff; }
 
-#StatusLabel[connected="true"] {
-    background-color: #28a745; /* Green for connected */
-    color: #ffffff;
-}
-
-#StatusLabel[connected="false"] {
-    background-color: #dc3545; /* Red for disconnected */
-    color: #ffffff;
-}
-
-/* GroupBox */
+/* --- QGroupBox --- */
 QGroupBox {
-    background-color: #2c313a; /* Darker grey for group boxes */
-    border: 1px solid #4a515f; /* Subtle border */
-    border-radius: 8px;
-    margin-top: 20px;
-    font-weight: bold;
-    color: #e0e0e0; /* Off-white for group title */
+    background-color: #2c313a; border: 1px solid #3c4049;
+    border-radius: 8px; margin-top: 10px; padding-top: 15px;
 }
-
 QGroupBox::title {
-    subcontrol-origin: margin;
-    subcontrol-position: top left;
-    padding: 5px 10px;
-    background-color: #61afef; /* Vibrant blue accent for title background */
-    border-radius: 5px;
-    color: #ffffff;
-    margin-left: 10px;
+    subcontrol-origin: margin; subcontrol-position: top left;
+    padding: 2px 5px; background-color: #0053A0; /* UMRAH Blue */
+    color: #ffffff; border-radius: 4px; font-weight: bold; font-size: 14px;
 }
 
-/* Buttons */
+/* --- QPushButton (UMRAH Blue) --- */
 QPushButton {
-    background-color: #61afef; /* Vibrant blue */
-    color: #ffffff;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 5px;
-    font-weight: bold;
-    transition: background-color 0.3s ease; /* Smooth transition for hover */
+    background-color: #0053A0; /* UMRAH Blue */
+    border: 1px solid #006bcf;
+    border-radius: 6px; padding: 6px; color: #ffffff;
+    font-weight: bold; font-size: 13px; min-height: 20px;
 }
+QPushButton:hover { background-color: #006bcf; }
+QPushButton:pressed { background-color: #00407e; }
+QPushButton:disabled {
+    background-color: #3a3f4b; color: #7f848e; border-color: #4a4f5a;
+}
+#StopButton {
+    background-color: #D42127; /* UMRAH Red */ border-color: #e83a40; padding: 8px;
+}
+#StopButton:hover { background-color: #e83a40; }
+#StopButton:pressed { background-color: #b81c22; }
 
-QPushButton:hover {
-    background-color: #529fdf; /* Slightly darker blue on hover */
-}
-
-QPushButton:pressed {
-    background-color: #428ecf; /* Even darker blue on press */
-}
-
-QPushButton#StopButton {
-    background-color: #e06c75; /* Soft red for stop button */
-}
-QPushButton#StopButton:hover {
-    background-color: #d15c66;
-}
-
-/* TabWidget for Central View */
-QTabWidget::pane {
-    border: 1px solid #4a515f; /* Matches group box border */
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-    background-color: #282c34; /* Matches base widget background */
-}
-
+/* --- QTabWidget --- */
+QTabWidget::pane { border: 1px solid #3c4049; border-top: 0px; }
 QTabBar::tab {
-    background-color: #2c313a; /* Matches group box background */
-    color: #abb2bf; /* Light greyish blue for inactive tabs */
-    padding: 10px 20px;
-    border: 1px solid #4a515f;
-    border-bottom: none;
-    border-top-left-radius: 5px;
-    border-top-right-radius: 5px;
+    background: #2c313a; border: 1px solid #3c4049; border-bottom: none;
+    padding: 8px 15px; border-top-left-radius: 6px; border-top-right-radius: 6px;
+    color: #abb2bf; font-weight: bold;
 }
-
 QTabBar::tab:selected {
-    background-color: #61afef; /* Vibrant blue for selected tab */
-    color: #ffffff;
-    font-weight: bold;
+    background: #3e4451; color: #FDD100; /* UMRAH Yellow for selected tab text */
+    border-bottom: 2px solid #FDD100;
 }
+QTabBar::tab:!selected:hover { background: #353a45; }
 
-QTabBar::tab:!selected:hover {
-    background-color: #3e4451; /* Darker grey on hover for unselected tabs */
-}
-
-/* Sliders */
+/* --- QSlider --- */
 QSlider::groove:horizontal {
-    border: 1px solid #4a515f;
-    height: 8px;
-    background: #4a515f;
-    margin: 2px 0;
-    border-radius: 4px;
+    border: 1px solid #3c4049; height: 8px; background: #21252b;
+    margin: 2px 0; border-radius: 4px;
 }
-
 QSlider::handle:horizontal {
-    background: #61afef; /* Vibrant blue handle */
-    border: 1px solid #61afef;
-    width: 18px;
-    margin: -5px 0;
-    border-radius: 9px;
+    background: #FDD100; /* UMRAH Yellow */ border: 1px solid #fbc100;
+    width: 18px; margin: -5px 0; border-radius: 9px;
 }
 
-/* LineEdits */
+/* --- Other Widgets --- */
+QLabel { font-size: 13px; }
 QLineEdit {
-    background-color: #3e4451; /* Slightly darker input field */
-    border: 1px solid #4a515f;
-    padding: 8px;
-    border-radius: 5px;
-    color: #abb2bf; /* Light greyish blue for text */
+    background-color: #21252b; border: 1px solid #3c4049; border-radius: 6px;
+    padding: 6px; color: #abb2bf;
 }
-
-QLineEdit:focus {
-    border: 1px solid #61afef; /* Blue focus border */
-}
-
-/* ListWidget */
+QLineEdit:focus { border: 1px solid #0053A0; /* UMRAH Blue */ }
 QListWidget {
-    background-color: #3e4451; /* Matches line edit background */
-    border: 1px solid #4a515f;
-    border-radius: 5px;
-    color: #abb2bf;
+    background-color: #21252b; border: 1px solid #3c4049; border-radius: 6px;
 }
-
-QListWidget::item {
-    padding: 8px;
-    border-bottom: 1px solid #2c313a; /* Subtle separator */
+QListWidget::item:selected { background-color: #0053A0; color: #ffffff; }
+QComboBox {
+    background-color: #0053A0; color: white; border: 1px solid #006bcf;
+    border-radius: 6px; padding: 6px;
 }
-
-QListWidget::item:selected {
-    background-color: #61afef; /* Vibrant blue for selected item */
-    color: white;
+QComboBox::drop-down { border: none; }
+QComboBox QAbstractItemView {
+    border: 1px solid #3c4049; background-color: #282c34;
+    selection-background-color: #006bcf;
 }
-
-/* NEW: Styling for Value Labels (Numbers) */
-QLabel#ValueLabel {
-    font-size: 18px; /* Ukuran font yang lebih besar */
-    font-weight: bold; /* Membuat teks tebal */
-    color: #61afef; /* Warna aksen yang menonjol (biru muda) */
-    padding-left: 5px; /* Sedikit padding agar tidak terlalu mepet */
-    padding-right: 5px;
+QScrollBar:vertical {
+    border: none; background: #282c34; width: 12px; margin: 0px;
 }
-
-/* Styling for Value Labels (Numbers) */
-QLabel#ValueLabel {
-    font-size: 18px; /* Ukuran font yang lebih besar */
-    font-weight: bold; /* Membuat teks tebal */
-    color: #61afef; /* Warna aksen yang menonjol (biru muda) */
-    padding-left: 5px; /* Sedikit padding agar tidak terlalu mepet */
-    padding-right: 5px;
-}
-
-/* Tambahan styling untuk tab di control_panel */
-QGroupBox#Settings QTabWidget::pane { /* Target QTabWidget di dalam QGroupBox "Settings" */
-    border: 1px solid #4a515f; /* Border yang konsisten dengan grupbox */
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-    background-color: #282c34; /* Warna background tab content */
-}
-
-QGroupBox#Settings QTabBar::tab {
-    background-color: #2c313a;
-    color: #abb2bf;
-    padding: 8px 15px; /* Sedikit lebih kecil agar pas */
-    border: 1px solid #4a515f;
-    border-bottom: none;
-    border-top-left-radius: 5px;
-    border-top-right-radius: 5px;
-}
-
-QGroupBox#Settings QTabBar::tab:selected {
-    background-color: #61afef;
-    color: #ffffff;
-    font-weight: bold;
-}
-
-QGroupBox#Settings QTabBar::tab:!selected:hover {
-    background-color: #3e4451;
-}
-
-/* Penyesuaian untuk QPushButton di header */
-#Header QPushButton {
-    background-color: #007bff; /* Warna biru standar untuk tombol tema */
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 5px;
-    font-weight: normal; /* Normal, tidak terlalu menonjol seperti tombol lain */
-}
-
-#Header QPushButton:hover {
-    background-color: #0056b3;
-}
+QScrollBar::handle:vertical { background: #4f5663; min-height: 20px; border-radius: 6px; }
