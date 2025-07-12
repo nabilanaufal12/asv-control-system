@@ -7,12 +7,15 @@ class PidView(QWidget):
     def __init__(self):
         super().__init__()
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 20)
+        # --- MODIFIKASI: Margin diperkecil agar lebih ringkas ---
+        main_layout.setContentsMargins(10, 10, 10, 10) 
         main_layout.setAlignment(Qt.AlignTop)
 
         # PID Settings Group
         pid_group = QGroupBox("PID Controller Gains")
         form_layout = QFormLayout()
+        # --- MODIFIKASI: Kurangi spasi antar baris di form ---
+        form_layout.setVerticalSpacing(10)
         
         self.p_input = QLineEdit("1.2")
         self.i_input = QLineEdit("0.5")
@@ -33,11 +36,14 @@ class PidView(QWidget):
         # PID Response Graph Placeholder
         graph_placeholder = QLabel("PID Response Graph Placeholder")
         graph_placeholder.setAlignment(Qt.AlignCenter)
-        graph_placeholder.setMinimumHeight(200)
+        # --- MODIFIKASI: Tinggi minimum dikurangi drastis dari 200 menjadi 80 ---
+        # Ini adalah perubahan paling signifikan untuk menghemat ruang vertikal.
+        graph_placeholder.setMinimumHeight(80) 
         graph_placeholder.setStyleSheet("background-color: #101020; border: 1px solid #3a3a5a; border-radius: 8px;")
 
         main_layout.addWidget(pid_group)
-        main_layout.addSpacing(20)
+        # --- MODIFIKASI: Spasi antar grup dikurangi dari 20 menjadi 10 ---
+        main_layout.addSpacing(10) 
         main_layout.addWidget(graph_placeholder)
         main_layout.addStretch()
 

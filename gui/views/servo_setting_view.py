@@ -7,14 +7,15 @@ class ServoSettingView(QWidget):
     def __init__(self):
         super().__init__()
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 20)
+        # --- MODIFIKASI: Margin diperkecil dari 20 menjadi 10 ---
+        main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setAlignment(Qt.AlignTop)
 
         servo_group = QGroupBox("Servo Angle Limits")
         form_layout = QFormLayout()
 
-        self.left_max_input = QLineEdit("120") # Max degrees for left turn
-        self.right_max_input = QLineEdit("60")  # Min degrees for right turn
+        self.left_max_input = QLineEdit("120")
+        self.right_max_input = QLineEdit("60")
 
         form_layout.addRow("Max Left Angle (°):", self.left_max_input)
         form_layout.addRow("Max Right Angle (°):", self.right_max_input)
