@@ -2,88 +2,59 @@
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGroupBox, QLabel,
                              QListWidget, QListWidgetItem, QHBoxLayout, QPushButton,
-                             QLineEdit, QFormLayout, QScrollArea) # Tambahkan import QScrollArea
+                             QLineEdit, QFormLayout)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QDoubleValidator
+import re # Impor pustaka Regular Expression untuk parsing teks
 
 class StatusPanel(QWidget):
-    """
-    Panel di sisi kanan aplikasi yang menampilkan status sistem secara real-time
-    dan menyediakan fungsionalitas untuk manajemen waypoint.
-    Kini menggunakan QScrollArea agar responsif terhadap perubahan ukuran jendela.
-    """
     message_to_show = pyqtSignal(str, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         
-        # --- Layout Utama & Scroll Area (MODIFIKASI UTAMA) ---
-        # 1. Buat layout terluar untuk menampung QScrollArea.
-        outer_layout = QVBoxLayout(self)
-        outer_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # 2. Buat QScrollArea untuk membuat konten dapat di-scroll.
-        self.scroll_area = QScrollArea(self)
-        self.scroll_area.setWidgetResizable(True) # Penting! Agar widget di dalamnya bisa mengisi area.
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff) # Matikan scroll horizontal.
-        
-        # 3. Buat widget konten yang akan menjadi 'kanvas' di dalam scroll area.
-        self.scroll_content_widget = QWidget()
-        
-        # 4. Gunakan self.main_layout sebagai layout untuk widget konten.
-        # Semua elemen (GroupBox, dll.) akan ditambahkan ke layout ini.
-        self.main_layout = QVBoxLayout(self.scroll_content_widget)
+        self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(10, 10, 10, 10)
         self.main_layout.setSpacing(15)
 
         # --- Grup Waypoints ---
-        # (Tidak ada perubahan di dalam grup ini, hanya dipindahkan ke dalam main_layout)
         wp_group = QGroupBox("Waypoints")
         wp_layout = QVBoxLayout(wp_group)
-        
         wp_form_layout = QFormLayout()
         self.lat_input = QLineEdit()
         self.lon_input = QLineEdit()
-        
         lat_validator = QDoubleValidator(-90.0, 90.0, 7, self)
         lon_validator = QDoubleValidator(-180.0, 180.0, 7, self)
         self.lat_input.setValidator(lat_validator)
         self.lon_input.setValidator(lon_validator)
-        self.lat_input.setPlaceholderText("contoh: -6.2100")
-        self.lon_input.setPlaceholderText("contoh: 106.8400")
-        
+        self.lat_input.setPlaceholderText("e.g., -6.2100")
+        self.lon_input.setPlaceholderText("e.g., 106.8400")
         wp_form_layout.addRow("Latitude:", self.lat_input)
         wp_form_layout.addRow("Longitude:", self.lon_input)
         wp_layout.addLayout(wp_form_layout)
-        
         wp_buttons_layout = QHBoxLayout()
         self.add_wp_button = QPushButton("Add")
         self.delete_wp_button = QPushButton("Delete")
         self.send_all_wp_button = QPushButton("Send All")
-        
         self.add_wp_button.clicked.connect(self.add_waypoint)
         self.delete_wp_button.clicked.connect(self.delete_selected_waypoint)
         self.send_all_wp_button.clicked.connect(self.send_all_waypoints)
-        
         wp_buttons_layout.addWidget(self.add_wp_button)
         wp_buttons_layout.addWidget(self.delete_wp_button)
         wp_buttons_layout.addWidget(self.send_all_wp_button)
         wp_layout.addLayout(wp_buttons_layout)
-        
         self.wp_list = QListWidget()
         self.wp_list.itemSelectionChanged.connect(self._update_delete_button_state)
         wp_layout.addWidget(self.wp_list)
-        
         wp_group.setLayout(wp_layout)
-        self.main_layout.addWidget(wp_group) # Tambahkan grup ke main_layout
+        self.main_layout.addWidget(wp_group)
 
         # --- Grup Status Sistem ---
-        # (Tidak ada perubahan di dalam grup ini)
         status_group = QGroupBox("System Status")
         status_layout = QVBoxLayout(status_group)
         status_layout.setSpacing(8)
-        
-        def create_status_label_pair(title, initial_value):
+
+        def create_status_label_pair(title, initial_value="---"):
             h_layout = QHBoxLayout()
             h_layout.addWidget(QLabel(title))
             value_label = QLabel(initial_value)
@@ -91,44 +62,57 @@ class StatusPanel(QWidget):
             value_label.setObjectName("ValueLabel")
             h_layout.addWidget(value_label)
             return h_layout, value_label
-            
-        sensor_status_items = [
-            create_status_label_pair("GPS:", "N/A"),
-            create_status_label_pair("Battery:", "N/A"),
-            create_status_label_pair("Compass:", "N/A"),
-            create_status_label_pair("Speed:", "N/A"),
-        ]
-        for layout, _ in sensor_status_items:
-            status_layout.addLayout(layout)
-            
-        steering_layout, self.auto_steering_label = create_status_label_pair("Auto-Steering:", "N/A")
+
+        # === PERUBAHAN: Simpan referensi ke setiap label nilai ===
+        gps_layout, self.gps_value_label = create_status_label_pair("GPS:")
+        battery_layout, self.battery_value_label = create_status_label_pair("Battery:")
+        compass_layout, self.compass_value_label = create_status_label_pair("Compass:")
+        speed_layout, self.speed_value_label = create_status_label_pair("Speed:")
+        steering_layout, self.auto_steering_label = create_status_label_pair("Auto-Steering:")
+        
+        status_layout.addLayout(gps_layout)
+        status_layout.addLayout(battery_layout)
+        status_layout.addLayout(compass_layout)
+        status_layout.addLayout(speed_layout)
         status_layout.addLayout(steering_layout)
         
-        status_layout.addSpacing(10)
-        status_layout.addWidget(QLabel("--- Communication ---"))
-        
-        comm_status_items = [
-            create_status_label_pair("Radio Link:", "N/A"),
-            create_status_label_pair("Telemetry:", "N/A"),
-        ]
-        for layout, _ in comm_status_items:
-            status_layout.addLayout(layout)
-            
         status_group.setLayout(status_layout)
-        self.main_layout.addWidget(status_group) # Tambahkan grup ke main_layout
-        
-        # --- Finalisasi Layout ---
-        self.main_layout.addStretch() # Mendorong semua grup ke atas
-        
-        # 5. Atur widget konten sebagai widget untuk scroll area.
-        self.scroll_area.setWidget(self.scroll_content_widget)
-        
-        # 6. Tambahkan scroll area ke layout terluar.
-        outer_layout.addWidget(self.scroll_area)
-        
+        self.main_layout.addWidget(status_group)
+        self.main_layout.addStretch()
         self._update_delete_button_state()
 
-    # (Sisa fungsi lainnya: add_waypoint, delete_selected_waypoint, dll. tidak berubah)
+    # === FUNGSI BARU UNTUK MENDAPATKAN WAYPOINTS ===
+    def get_waypoints(self):
+        """Mengurai teks dari QListWidget dan mengembalikan daftar koordinat."""
+        waypoints = []
+        for i in range(self.wp_list.count()):
+            item_text = self.wp_list.item(i).text()
+            # Gunakan regular expression untuk mencari angka desimal (termasuk negatif)
+            coords = re.findall(r"-?\d+\.\d+", item_text)
+            if len(coords) == 2:
+                try:
+                    lat = float(coords[0])
+                    lon = float(coords[1])
+                    waypoints.append({'lat': lat, 'lon': lon})
+                except ValueError:
+                    continue # Abaikan jika konversi gagal
+        return waypoints
+        
+    def update_gps(self, lat, lon, sats):
+        self.gps_value_label.setText(f"{lat}, {lon} ({sats} Sats)")
+
+    def update_battery(self, voltage):
+        self.battery_value_label.setText(f"{voltage} V")
+
+    def update_compass(self, degrees):
+        self.compass_value_label.setText(f"{degrees}°")
+
+    def update_speed(self, speed):
+        self.speed_value_label.setText(f"{speed} m/s")
+
+    def update_auto_steering_degree(self, degree):
+        self.auto_steering_label.setText(f"{degree}°")
+
     def add_waypoint(self):
         lat = self.lat_input.text().strip().replace(',', '.')
         lon = self.lon_input.text().strip().replace(',', '.')
@@ -166,6 +150,3 @@ class StatusPanel(QWidget):
 
     def _update_delete_button_state(self):
         self.delete_wp_button.setEnabled(len(self.wp_list.selectedItems()) > 0)
-
-    def update_auto_steering_degree(self, degree):
-        self.auto_steering_label.setText(f"{degree}°")
