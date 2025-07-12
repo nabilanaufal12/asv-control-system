@@ -55,6 +55,11 @@ class DashboardWindow(QMainWindow):
         self.central_view = CentralWidget(parent=self)
         self.status_panel = StatusPanel(parent=self)
         
+        # === PERBAIKAN: Atur Lebar Minimum untuk Panel Samping ===
+        # Ini akan mencegah panel samping menjadi terlalu sempit dan memotong kontennya.
+        self.control_panel.setMinimumWidth(300)
+        self.status_panel.setMinimumWidth(300)
+        
         # Berikan instance serial_handler ke tab koneksi yang berada di dalam control_panel.
         self.control_panel.tab_connection_settings.set_serial_handler(self.serial_handler)
         
@@ -138,11 +143,12 @@ class DashboardWindow(QMainWindow):
         
         # Hubungkan atau putuskan sinyal pembaca saat koneksi berubah
         if is_connected and self.serial_handler.reader_thread:
+            # Pastikan tidak ada koneksi ganda
+            try:
+                self.serial_handler.reader_thread.data_received.disconnect(self.handle_received_data)
+            except TypeError:
+                pass # Abaikan jika belum terhubung
             self.serial_handler.reader_thread.data_received.connect(self.handle_received_data)
-        else:
-            # Cari cara untuk memutus koneksi sinyal jika diperlukan,
-            # tapi biasanya thread yang berhenti sudah cukup.
-            pass
         
         print(f"Header status diupdate: {message}")
 
