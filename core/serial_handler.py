@@ -13,8 +13,9 @@ class SerialReader(QThread):
     mendengarkan data yang masuk dari port serial tanpa membuat antarmuka (GUI) utama menjadi beku.
     """
     # Definisikan sinyal yang akan dipancarkan saat ada data baru yang diterima.
-    # Sinyal ini membawa satu argumen string (data yang dibaca).
     data_received = pyqtSignal(str)
+    # Sinyal baru untuk memberitahu bahwa koneksi hilang saat proses membaca.
+    connection_lost = pyqtSignal()
 
     def __init__(self, serial_instance):
         """Konstruktor, menerima instance koneksi serial yang aktif."""
@@ -32,10 +33,7 @@ class SerialReader(QThread):
             try:
                 # Cek apakah ada byte yang menunggu untuk dibaca di buffer serial.
                 if self.ser.in_waiting > 0:
-                    # Baca satu baris data (diakhiri dengan karakter newline '\n').
                     line = self.ser.readline()
-                    # Decode dari format bytes ke string, abaikan error jika ada karakter aneh.
-                    # .strip() menghapus spasi atau karakter tak terlihat di awal/akhir.
                     text = line.decode('utf-8', errors='ignore').strip()
                     if text:
                         # Jika teks tidak kosong, pancarkan sinyal dengan data tersebut.
@@ -43,6 +41,8 @@ class SerialReader(QThread):
             except serial.SerialException:
                 # Jika terjadi error (misal: perangkat dicabut), hentikan loop.
                 print("Error port serial. Menghentikan thread pembaca.")
+                # Pancarkan sinyal bahwa koneksi telah hilang.
+                self.connection_lost.emit()
                 break
         print("Serial reader thread selesai.")
 
@@ -56,6 +56,9 @@ class SerialHandler:
     Kelas ini mengelola semua aspek komunikasi serial dengan perangkat keras (ESP32),
     termasuk mengirim dan menerima data.
     """
+    # Definisikan sinyal di sini untuk meneruskan sinyal dari SerialReader.
+    connection_lost = pyqtSignal()
+
     def __init__(self):
         self.ser = None # Menyimpan objek koneksi serial
         self.reader_thread = None # Menyimpan objek thread pembaca
@@ -76,8 +79,9 @@ class SerialHandler:
             
             if self.ser.is_open:
                 print(f"Berhasil terhubung ke {port}.")
-                # === PERUBAHAN: Mulai thread pembaca setelah terhubung ===
                 self.reader_thread = SerialReader(self.ser)
+                # Hubungkan sinyal dari thread ke sinyal di handler ini (meneruskan sinyal).
+                self.reader_thread.connection_lost.connect(self.connection_lost.emit)
                 self.reader_thread.start() # Jalankan thread di latar belakang
                 return True
             return False
@@ -88,7 +92,6 @@ class SerialHandler:
 
     def disconnect(self):
         """Menghentikan thread pembaca dan menutup koneksi serial."""
-        # === PERUBAHAN: Hentikan thread pembaca sebelum menutup koneksi ===
         if self.reader_thread:
             self.reader_thread.stop() # Set flag 'running' menjadi False
             self.reader_thread.wait() # Tunggu thread benar-benar berhenti
@@ -108,7 +111,9 @@ class SerialHandler:
                 return True
             except serial.SerialException as e:
                 print(f"Error saat menulis ke port serial: {e}")
-                self.disconnect() # Putuskan koneksi jika ada error
+                # Pancarkan sinyal bahwa koneksi hilang dan putuskan hubungan.
+                self.connection_lost.emit()
+                self.disconnect()
                 return False
         return False
 
