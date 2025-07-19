@@ -25,8 +25,9 @@ class DashboardWindow(QMainWindow):
         self.setGeometry(100, 100, 1600, 900)
 
         # --- Variabel dan Objek Inti ---
-        self.app = None
+        self.app = None # Untuk menyimpan instance QApplication (untuk manajemen tema)
         self.current_theme = "dark"
+        # Hanya ada satu objek SerialHandler untuk seluruh aplikasi, dibuat di sini.
         self.serial_handler = SerialHandler()
         
         # Inisialisasi variabel untuk logika navigasi misi
@@ -38,7 +39,7 @@ class DashboardWindow(QMainWindow):
         self.waypoint_reach_threshold = 5 # Jarak dalam meter untuk dianggap sampai
         self.pid_heading = PIDController(Kp=1.0, Ki=0.0, Kd=0.2, setpoint=0)
         
-        # Membuat status bar di bagian bawah jendela untuk pesan sementara
+        # Membuat status bar di bagian bawah jendela untuk pesan sementara.
         self.statusBar().showMessage("Welcome to ASV Control System!", 5000)
 
         # --- Membangun Struktur Layout Utama ---
@@ -51,12 +52,13 @@ class DashboardWindow(QMainWindow):
         self.main_layout.addWidget(self.header)
 
         # --- Merakit Panel-Panel Utama ---
+        # Berikan instance serial_handler dan parent (self) ke widget yang membutuhkannya.
         self.control_panel = ControlPanel(parent=self, serial_handler=self.serial_handler)
         self.central_view = CentralWidget(parent=self)
         self.status_panel = StatusPanel(parent=self)
         self.control_panel.tab_connection_settings.set_serial_handler(self.serial_handler)
         
-        # === PERBAIKAN UTAMA: Gunakan QSplitter untuk Layout Fleksibel ===
+        # === Gunakan QSplitter untuk Layout Fleksibel ===
         # QSplitter adalah kontainer yang memungkinkan pengguna untuk mengubah ukuran widget di dalamnya.
         # Ini adalah solusi terbaik untuk mencegah panel terpotong.
         splitter = QSplitter(Qt.Horizontal)
@@ -67,8 +69,6 @@ class DashboardWindow(QMainWindow):
         splitter.addWidget(self.status_panel)
 
         # Atur ukuran awal untuk setiap panel.
-        # Ini akan memberikan 320px ke panel kiri, 320px ke panel kanan,
-        # dan sisa ruangnya ke panel tengah.
         splitter.setSizes([320, 960, 320])
         
         # Mencegah panel samping agar tidak bisa "disembunyikan" sepenuhnya oleh pengguna.
@@ -165,7 +165,7 @@ class DashboardWindow(QMainWindow):
         """Slot yang menerima sinyal untuk mengupdate status koneksi di header."""
         self.header_status_connection.setText(message)
         self.header_status_connection.setProperty("connected", is_connected)
-        self.style().polish(self.header_status_connection)
+        self.style().polish(self.header_status_connection) # Terapkan ulang style agar warna berubah
         
         # Hubungkan sinyal dari thread pembaca SETELAH koneksi berhasil dibuat.
         if is_connected and self.serial_handler.reader_thread:
